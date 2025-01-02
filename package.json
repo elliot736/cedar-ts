@@ -1,0 +1,67 @@
+{
+  "name": "cedar-ts",
+  "version": "0.1.0",
+  "description": "Pure TypeScript implementation of the AWS Cedar policy language — parser, evaluator, and validator with zero dependencies",
+  "type": "module",
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "test:coverage": "vitest run --coverage",
+    "lint": "eslint src/ tests/",
+    "typecheck": "tsc --noEmit",
+    "prepublishOnly": "npm run lint && npm run typecheck && npm test && npm run build"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@vitest/coverage-v8": "^2.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.4.0",
+    "typescript-eslint": "^8.0.0",
+    "vitest": "^2.0.0"
+  },
+  "files": [
+    "dist",
+    "LICENSE",
+    "README.md"
+  ],
+  "license": "MIT",
+  "author": {
+    "name": "elliot736",
+    "url": "https://github.com/elliot736"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elliot736/cedar-ts.git"
+  },
+  "homepage": "https://github.com/elliot736/cedar-ts#readme",
+  "bugs": {
+    "url": "https://github.com/elliot736/cedar-ts/issues"
+  },
+  "keywords": [
+    "cedar",
+    "authorization",
+    "policy",
+    "aws",
+    "iam",
+    "rbac",
+    "abac",
+    "access-control",
+    "permissions",
+    "typescript"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}
