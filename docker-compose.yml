@@ -1,0 +1,15 @@
+services:
+  test:
+    build:
+      context: .
+      target: test
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+
+  build:
+    build:
+      context: .
+      target: build
+    volumes:
+      - ./dist:/app/dist
