@@ -1,0 +1,134 @@
+@startuml cedar-ts-component-diagram
+
+skinparam componentStyle uml2
+skinparam linetype ortho
+
+title cedar-ts Component Diagram
+
+package "cedar-ts" {
+
+  ' ============================================================
+  ' Parser layer
+  ' ============================================================
+  package "Parser" {
+    [Tokenizer] as tokenizer
+    [Parser] as parser
+    [AST Types] as ast
+
+    note right of tokenizer
+      Lexes Cedar source into
+      60+ token kinds
+    end note
+
+    tokenizer --> ast : produces Token\n(kind, value, pos)
+    parser --> tokenizer : peekToken()\nnextToken()\nexpect()
+    parser --> ast : builds Policy[]\nand Expr tree
+  }
+
+  ' ============================================================
+  ' Evaluator layer
+  ' ============================================================
+  package "Evaluator" {
+    [Values] as values
+    [Context] as context
+    [Evaluator] as evaluator
+
+    note right of evaluator
+      Walks Expr AST,
+      resolves variables from
+      Request + EntityStore
+    end note
+
+    evaluator --> values : produces CedarValue
+    evaluator --> context : reads Request\n{principal, action,\nresource, context}
+  }
+
+  ' ============================================================
+  ' Entities layer
+  ' ============================================================
+  package "Entities" {
+    interface "EntityStore" as es_iface
+    [MemoryEntityStore] as memstore
+    [Entity] as entity
+
+    note right of memstore
+      Map-based store with
+      DFS ancestor caching
+    end note
+
+    memstore ..|> es_iface
+    memstore --> entity : stores
+  }
+
+  ' ============================================================
+  ' Schema layer
+  ' ============================================================
+  package "Schema" {
+    [CedarSchema] as schema_def
+    [Validator] as validator
+
+    note right of validator
+      Type-checks policies
+      against entity/action
+      schema definitions
+    end note
+
+    validator --> schema_def : reads EntityTypeSchema\nActionSchema\nTypeSchema
+  }
+
+  ' ============================================================
+  ' Authorizer (top-level facade)
+  ' ============================================================
+  [Authorizer] as authorizer
+
+  note top of authorizer
+    Public API facade:
+    fromText(), isAuthorized(),
+    setEntityStore(), addPolicies()
+  end note
+}
+
+' ============================================================
+' External boundary
+' ============================================================
+actor "Application" as app
+
+' ============================================================
+' Cross-package relationships
+' ============================================================
+
+' Authorizer orchestrates everything
+authorizer --> parser : parsePolicies(source)
+authorizer --> evaluator : evaluate(policy, request, store)
+authorizer --> es_iface : get(), getAncestors()
+authorizer --> validator : validatePolicies()
+
+' Evaluator depends on entities for hierarchy lookups
+evaluator --> es_iface : get(uid)\ngetAncestors(uid)
+
+' Evaluator walks the AST produced by parser
+evaluator --> ast : walks Expr nodes
+
+' Validator reads AST for type checking
+validator --> ast : inspects Policy +\nExpr nodes
+
+' Application entry point
+app --> authorizer : isAuthorized(request)
+app --> memstore : provides Entity[]
+
+' ============================================================
+' Data flow note
+' ============================================================
+note bottom of authorizer
+  **Authorization flow:**
+  1. Application calls fromText() to load Cedar policies
+  2. Parser tokenizes source and builds AST (Policy[], Expr tree)
+  3. Optionally, Validator checks policies against CedarSchema
+  4. Application calls isAuthorized(request)
+  5. Evaluator walks each Policy's Expr tree
+  6. EntityStore resolves entity lookups and ancestor queries
+  7. Authorizer combines per-policy results: forbid overrides permit
+  8. Returns AuthorizationResponse {decision, diagnostics}
+end note
+
+@enduml

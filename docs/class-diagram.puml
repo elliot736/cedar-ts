@@ -1,0 +1,558 @@
+@startuml cedar-ts-class-diagram
+
+skinparam classAttributeIconSize 0
+skinparam linetype ortho
+skinparam packageStyle rectangle
+
+title cedar-ts Class Diagram
+
+' ============================================================
+' Parser / AST
+' ============================================================
+package "parser/ast" {
+
+  class Position {
+    +offset: number
+    +line: number
+    +column: number
+  }
+
+  class Span {
+    +start: Position
+    +end: Position
+  }
+
+  enum Effect {
+    permit
+    forbid
+  }
+
+  class Policy {
+    +id: string
+    +effect: Effect
+    +principal: PrincipalConstraint
+    +action: ActionConstraint
+    +resource: ResourceConstraint
+    +conditions: Condition[]
+    +span: Span
+  }
+
+  class EntityUIDLiteral {
+    +type: string
+    +id: string
+  }
+
+  ' --- Principal constraints ---
+  abstract class PrincipalConstraint {
+    +kind: string
+  }
+  class PrincipalAny {
+    +kind: "any"
+  }
+  class PrincipalEq {
+    +kind: "eq"
+    +entity: EntityUIDLiteral
+  }
+  class PrincipalIn {
+    +kind: "in"
+    +entity: EntityUIDLiteral
+  }
+  class PrincipalIs {
+    +kind: "is"
+    +entityType: string
+  }
+  class PrincipalIsIn {
+    +kind: "is_in"
+    +entityType: string
+    +entity: EntityUIDLiteral
+  }
+  PrincipalConstraint <|-- PrincipalAny
+  PrincipalConstraint <|-- PrincipalEq
+  PrincipalConstraint <|-- PrincipalIn
+  PrincipalConstraint <|-- PrincipalIs
+  PrincipalConstraint <|-- PrincipalIsIn
+
+  ' --- Action constraints ---
+  abstract class ActionConstraint {
+    +kind: string
+  }
+  class ActionAny {
+    +kind: "any"
+  }
+  class ActionEq {
+    +kind: "eq"
+    +entity: EntityUIDLiteral
+  }
+  class ActionIn {
+    +kind: "in"
+    +entity: EntityUIDLiteral
+  }
+  class ActionInSet {
+    +kind: "in_set"
+    +entities: EntityUIDLiteral[]
+  }
+  ActionConstraint <|-- ActionAny
+  ActionConstraint <|-- ActionEq
+  ActionConstraint <|-- ActionIn
+  ActionConstraint <|-- ActionInSet
+
+  ' --- Resource constraints ---
+  abstract class ResourceConstraint {
+    +kind: string
+  }
+  class ResourceAny {
+    +kind: "any"
+  }
+  class ResourceEq {
+    +kind: "eq"
+    +entity: EntityUIDLiteral
+  }
+  class ResourceIn {
+    +kind: "in"
+    +entity: EntityUIDLiteral
+  }
+  class ResourceIs {
+    +kind: "is"
+    +entityType: string
+  }
+  class ResourceIsIn {
+    +kind: "is_in"
+    +entityType: string
+    +entity: EntityUIDLiteral
+  }
+  ResourceConstraint <|-- ResourceAny
+  ResourceConstraint <|-- ResourceEq
+  ResourceConstraint <|-- ResourceIn
+  ResourceConstraint <|-- ResourceIs
+  ResourceConstraint <|-- ResourceIsIn
+
+  ' --- Condition ---
+  class Condition {
+    +kind: "when" | "unless"
+    +body: Expr
+  }
+
+  ' --- Expr union hierarchy ---
+  abstract class Expr {
+    +kind: string
+    +span: Span
+  }
+
+  class LiteralExpr {
+    +kind: "literal"
+    +value: boolean | number | string
+  }
+  class EntityUIDExpr {
+    +kind: "entityUID"
+    +type: string
+    +id: string
+  }
+  class VarExpr {
+    +kind: "var"
+    +name: "principal" | "action" | "resource" | "context"
+  }
+  class SlotExpr {
+    +kind: "slot"
+    +name: string
+  }
+  class NotExpr {
+    +kind: "not"
+    +arg: Expr
+  }
+  class NegExpr {
+    +kind: "neg"
+    +arg: Expr
+  }
+  class BinaryExpr {
+    +kind: "binary"
+    +op: string
+    +left: Expr
+    +right: Expr
+  }
+  class IfThenElseExpr {
+    +kind: "ifThenElse"
+    +cond: Expr
+    +then: Expr
+    +else: Expr
+  }
+  class InExpr {
+    +kind: "in"
+    +left: Expr
+    +right: Expr
+  }
+  class HasExpr {
+    +kind: "has"
+    +left: Expr
+    +attr: string
+  }
+  class LikeExpr {
+    +kind: "like"
+    +left: Expr
+    +pattern: string
+  }
+  class IsExpr {
+    +kind: "is"
+    +left: Expr
+    +entityType: string
+    +inExpr?: Expr
+  }
+  class GetAttrExpr {
+    +kind: "getAttr"
+    +left: Expr
+    +attr: string
+  }
+  class MethodCallExpr {
+    +kind: "methodCall"
+    +left: Expr
+    +name: string
+    +args: Expr[]
+  }
+  class SetExpr {
+    +kind: "set"
+    +elements: Expr[]
+  }
+  class RecordExpr {
+    +kind: "record"
+    +pairs: Map<string, Expr>
+  }
+
+  Expr <|-- LiteralExpr
+  Expr <|-- EntityUIDExpr
+  Expr <|-- VarExpr
+  Expr <|-- SlotExpr
+  Expr <|-- NotExpr
+  Expr <|-- NegExpr
+  Expr <|-- BinaryExpr
+  Expr <|-- IfThenElseExpr
+  Expr <|-- InExpr
+  Expr <|-- HasExpr
+  Expr <|-- LikeExpr
+  Expr <|-- IsExpr
+  Expr <|-- GetAttrExpr
+  Expr <|-- MethodCallExpr
+  Expr <|-- SetExpr
+  Expr <|-- RecordExpr
+
+  Policy --> Effect
+  Policy --> PrincipalConstraint
+  Policy --> ActionConstraint
+  Policy --> ResourceConstraint
+  Policy *-- Condition
+  Policy --> Span
+  Condition --> Expr
+  Expr --> Span
+}
+
+' ============================================================
+' Parser / Tokenizer
+' ============================================================
+package "parser/tokenizer" {
+
+  enum TokenKind {
+    Identifier
+    IntLiteral
+    StringLiteral
+    True
+    False
+    If
+    Then
+    Else
+    Permit
+    Forbid
+    When
+    Unless
+    In
+    Has
+    Like
+    Is
+    LParen
+    RParen
+    LBrace
+    RBrace
+    LBracket
+    RBracket
+    Comma
+    Semicolon
+    Colon
+    DoubleColon
+    Dot
+    Plus
+    Dash
+    Star
+    Eq
+    NotEq
+    Lt
+    LtEq
+    Gt
+    GtEq
+    And
+    Or
+    Not
+    At
+    EOF
+    ...
+  }
+
+  class Token {
+    +kind: TokenKind
+    +value: string
+    +pos: Position
+  }
+
+  class Tokenizer {
+    -source: string
+    -pos: number
+    +peekToken(): Token
+    +nextToken(): Token
+    +expect(kind: TokenKind): Token
+    +isAtEnd(): boolean
+  }
+
+  Token --> TokenKind
+  Token --> Position
+  Tokenizer ..> Token : produces
+}
+
+' ============================================================
+' Parser
+' ============================================================
+package "parser/parser" {
+
+  class ParseError {
+    +message: string
+    +span?: Span
+  }
+
+  class PolicySet {
+    +policies: Policy[]
+  }
+
+  class "parsePolicies()" as parsePolicies <<function>> {
+    +parsePolicies(source: string): PolicySet
+  }
+
+  class "parseExpression()" as parseExpression <<function>> {
+    +parseExpression(source: string): Expr
+  }
+
+  parsePolicies ..> PolicySet : returns
+  parsePolicies ..> Tokenizer : uses
+  parseExpression ..> Expr : returns
+  parseExpression ..> Tokenizer : uses
+}
+
+' ============================================================
+' Evaluator / Values
+' ============================================================
+package "evaluator/values" {
+
+  class EntityUID {
+    +type: string
+    +id: string
+  }
+
+  abstract class CedarValue {
+    boolean | number | string
+    | EntityUID | CedarSet
+    | CedarRecord | CedarExtension
+  }
+
+  class CedarSet {
+    -elements: CedarValue[]
+    +contains(v: CedarValue): boolean
+    +containsAll(other: CedarSet): boolean
+    +containsAny(other: CedarSet): boolean
+  }
+
+  class CedarRecord <<type>> {
+    +[key: string]: CedarValue
+  }
+
+  CedarValue <|.. EntityUID
+  CedarValue <|.. CedarSet
+  CedarValue <|.. CedarRecord
+}
+
+' ============================================================
+' Evaluator / Context
+' ============================================================
+package "evaluator/context" {
+
+  class Request {
+    +principal: EntityUID
+    +action: EntityUID
+    +resource: EntityUID
+    +context: CedarRecord
+  }
+
+  Request --> EntityUID
+  Request --> CedarRecord
+}
+
+' ============================================================
+' Evaluator
+' ============================================================
+package "evaluator/evaluator" {
+
+  enum Decision {
+    allow
+    deny
+  }
+
+  class Diagnostics {
+    +reasons: string[]
+    +errors: string[]
+  }
+
+  class AuthorizationResponse {
+    +decision: Decision
+    +diagnostics: Diagnostics
+  }
+
+  class EvaluationError {
+    +message: string
+  }
+
+  class "evaluate()" as evaluate <<function>> {
+    +evaluate(policy, request, store): boolean
+  }
+
+  class "evalExpr()" as evalExpr <<function>> {
+    +evalExpr(expr, env): CedarValue
+  }
+
+  AuthorizationResponse --> Decision
+  AuthorizationResponse *-- Diagnostics
+  evaluate ..> Request : reads
+  evaluate ..> Policy : evaluates
+  evalExpr ..> Expr : walks
+  evalExpr ..> CedarValue : returns
+}
+
+' ============================================================
+' Entities
+' ============================================================
+package "entities" {
+
+  class Entity {
+    +uid: EntityUID
+    +attrs: CedarRecord
+    +parents: EntityUID[]
+  }
+
+  interface EntityStore {
+    +get(uid: EntityUID): Entity | undefined
+    +getAncestors(uid: EntityUID): Set<EntityUID>
+  }
+
+  class MemoryEntityStore {
+    -entities: Map<string, Entity>
+    -ancestorCache: Map<string, Set<EntityUID>>
+    +get(uid: EntityUID): Entity | undefined
+    +getAncestors(uid: EntityUID): Set<EntityUID>
+  }
+
+  EntityStore <|.. MemoryEntityStore
+  MemoryEntityStore o-- Entity
+  Entity --> EntityUID
+}
+
+' ============================================================
+' Schema
+' ============================================================
+package "schema" {
+
+  class CedarSchema {
+    +namespace: string
+    +entityTypes: Map<string, EntityTypeSchema>
+    +actions: Map<string, ActionSchema>
+  }
+
+  class EntityTypeSchema {
+    +memberOfTypes?: string[]
+    +shape?: TypeSchema
+  }
+
+  class ActionSchema {
+    +appliesTo?: AppliesToSchema
+    +memberOf?: EntityUIDLiteral[]
+  }
+
+  abstract class TypeSchema {
+    +kind: string
+  }
+  class PrimitiveType {
+    +kind: "Primitive"
+    +primitiveType: "Boolean" | "Long" | "String"
+  }
+  class SetType {
+    +kind: "Set"
+    +element: TypeSchema
+  }
+  class RecordType {
+    +kind: "Record"
+    +attributes: Map<string, AttributeSchema>
+  }
+  class EntityRefType {
+    +kind: "EntityRef"
+    +entityType: string
+  }
+
+  class AttributeSchema {
+    +type: TypeSchema
+    +required: boolean
+  }
+
+  TypeSchema <|-- PrimitiveType
+  TypeSchema <|-- SetType
+  TypeSchema <|-- RecordType
+  TypeSchema <|-- EntityRefType
+  RecordType *-- AttributeSchema
+  AttributeSchema --> TypeSchema
+
+  CedarSchema *-- EntityTypeSchema
+  CedarSchema *-- ActionSchema
+  EntityTypeSchema --> TypeSchema
+
+  class ValidationError {
+    +message: string
+    +policyId: string
+    +span?: Span
+  }
+
+  class ValidationResult {
+    +valid: boolean
+    +errors: ValidationError[]
+  }
+
+  class "validatePolicies()" as validatePolicies <<function>> {
+    +validatePolicies(policies, schema): ValidationResult
+  }
+
+  validatePolicies ..> ValidationResult : returns
+  validatePolicies ..> CedarSchema : reads
+  ValidationResult *-- ValidationError
+}
+
+' ============================================================
+' Authorizer
+' ============================================================
+package "authorizer" {
+
+  class Authorizer {
+    -policies: Policy[]
+    -entityStore: EntityStore
+    +fromText(source: string): void
+    +isAuthorized(request: Request): AuthorizationResponse
+    +setEntityStore(store: EntityStore): void
+    +addPolicies(source: string): void
+    +getPolicies(): Policy[]
+  }
+
+  Authorizer --> EntityStore : uses
+  Authorizer --> Policy : manages
+  Authorizer ..> AuthorizationResponse : returns
+  Authorizer ..> Request : accepts
+}
+
+@enduml
