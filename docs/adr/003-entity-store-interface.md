@@ -4,6 +4,10 @@
 
 Accepted
 
+## Date
+
+2025-01-12
+
 ## Context
 
 Cedar policy evaluation requires access to entity data. When a policy references `principal in Group::"admins"`, the evaluator needs to look up the principal entity and traverse its parent hierarchy to determine group membership. When a policy accesses `resource.owner`, the evaluator needs to retrieve the resource entity's attributes.

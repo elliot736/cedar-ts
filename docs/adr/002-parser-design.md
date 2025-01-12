@@ -4,6 +4,10 @@
 
 Accepted
 
+## Date
+
+2025-01-12
+
 ## Context
 
 The Cedar policy language has a well-defined grammar documented in the Cedar specification. To parse Cedar policy text into an AST, we need a parsing strategy. The main options considered were:

@@ -4,6 +4,10 @@
 
 Accepted
 
+## Date
+
+2025-01-10
+
 ## Context
 
 AWS Cedar is an open-source policy language for authorization. The reference implementation is written in Rust, and official bindings exist as WASM packages that wrap the Rust core. While functional, these WASM bindings carry significant trade-offs for TypeScript/JavaScript consumers:
