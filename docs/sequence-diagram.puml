@@ -1,0 +1,72 @@
+@startuml sequence-diagram
+title cedar-ts — Authorization Flow
+
+participant "Application" as app
+participant "Authorizer" as auth
+participant "Parser" as parser
+participant "Tokenizer" as tok
+participant "Evaluator" as eval
+participant "MemoryEntityStore" as store
+participant "SchemaValidator" as schema
+
+== Setup ==
+
+app -> auth : Authorizer.fromText(policyText, entityStore)
+auth -> parser : parsePolicies(policyText)
+parser -> tok : new Tokenizer(source)
+tok -> tok : tokenize all tokens
+tok --> parser : token stream
+loop for each policy
+  parser -> parser : parsePolicy()
+  parser -> parser : parseEffect() → permit | forbid
+  parser -> parser : parsePrincipalConstraint()
+  parser -> parser : parseActionConstraint()
+  parser -> parser : parseResourceConstraint()
+  parser -> parser : parseConditions() → Expr[]
+end
+parser --> auth : PolicySet (Policy[])
+auth --> app : Authorizer instance
+
+== Optional: Schema Validation ==
+
+app -> schema : validatePolicies(policies, cedarSchema)
+loop for each policy
+  schema -> schema : validate principal types
+  schema -> schema : validate action types
+  schema -> schema : validate resource types
+  schema -> schema : validate condition expressions
+end
+schema --> app : ValidationResult { valid, errors }
+
+== Authorization Request ==
+
+app -> auth : isAuthorized({ principal, action, resource, context })
+auth -> eval : evaluate(policies, entityStore, request)
+
+loop for each policy
+  eval -> eval : match principal constraint
+  eval -> store : getAncestors(request.principal)
+  store -> store : DFS with cycle protection (cached)
+  store --> eval : ancestor set
+  eval -> eval : match action constraint
+  eval -> eval : match resource constraint
+  eval -> store : getAncestors(request.resource)
+  store --> eval : ancestor set
+  alt scope matches
+    eval -> eval : evaluate conditions (Expr tree)
+    note right of eval
+      Evaluates: &&, ||, ==, !=, in,
+      has, like, is, if-then-else,
+      method calls (contains, containsAll, containsAny)
+    end note
+    alt all conditions true
+      eval -> eval : add to permits or forbids
+    end
+  end
+end
+
+eval -> eval : apply deny-overrides:\n1. any forbid → DENY\n2. any permit → ALLOW\n3. default → DENY
+eval --> auth : AuthorizationResponse { decision, diagnostics }
+auth --> app : { decision: "allow" | "deny", diagnostics }
+
+@enduml
