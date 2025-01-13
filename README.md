@@ -38,22 +38,24 @@
 
 ## Why cedar-ts
 
-[Cedar](https://www.cedarpolicy.com/) is AWS's open-source policy language for authorization, designed to be analyzable, auditable, and fast. The official SDK is written in Rust, with JavaScript bindings available only through a 2MB+ WASM blob that is opaque to debuggers, cannot be tree-shaken, and has limited compatibility with edge runtimes like Cloudflare Workers.
+[Cedar](https://www.cedarpolicy.com/) is AWS's open-source policy language for authorization. It's analyzable, auditable, and fast. The problem is using it in JavaScript.
 
-**cedar-ts** is a native TypeScript reimplementation that gives you a fully debuggable, tree-shakeable, edge-ready Cedar engine in under 15KB gzipped. No WASM, no native dependencies, no async initialization.
+The official SDK (`@cedar-policy/cedar-wasm`) compiles the Rust engine to a **2MB WASM blob**. That blob is opaque to every debugger you own. It can't be tree-shaken. It requires async initialization before you can evaluate a single request. And if you're deploying to Cloudflare Workers, Deno Deploy, or Vercel Edge, you'll hit WASM size limits or missing API surfaces before you ship anything.
+
+**cedar-ts** throws all of that away and reimplements Cedar in pure TypeScript. The result: **15KB gzipped**, fully synchronous, step-through debuggable in any browser or Node.js inspector, and compatible with every JavaScript runtime that exists today. You `import` it, call a function, and get an authorization decision. No `.wasm` fetch, no `await init()`, no "works on my machine but not on the edge."
 
 ---
 
 ## Features
 
-- **Full Cedar policy language support.** `permit`, `forbid`, `when`, `unless`, annotations, all scope constraint forms.
-- **Entity hierarchy with transitive ancestry.** DFS resolution with cycle protection and caching.
-- **Schema validation at author time.** Catch type errors, unknown entities, and invalid attributes before deployment.
-- **Zero dependencies, pure TypeScript.** Nothing to audit, nothing to break.
-- **Edge-ready.** Runs on Cloudflare Workers, Deno Deploy, Vercel Edge, Bun, Node.js, and browsers.
-- **Rich diagnostics.** Know exactly which policies matched, which were denied, and why evaluation failed.
-- **Synchronous API.** No async initialization, no WASM instantiation step.
-- **Tree-shakeable ESM.** Import only what you need; bundlers eliminate the rest.
+- **Full Cedar language.** `permit`, `forbid`, `when`, `unless`, annotations, every scope constraint form. If the Cedar spec defines it, cedar-ts parses and evaluates it.
+- **Transitive entity hierarchy.** DFS ancestry resolution with cycle protection and per-entity caching. Model `User in Team in Org` and get correct `in` checks without writing graph traversal code yourself.
+- **Schema validation at author time.** Catch typos in entity types, invalid attribute accesses, and type mismatches before your policies reach production. Errors include source locations.
+- **Zero dependencies.** Nothing to audit, nothing to break. The entire engine is TypeScript that ships as ESM.
+- **Runs everywhere.** Cloudflare Workers, Deno Deploy, Vercel Edge, Bun, Node.js, browsers. No WASM size limits, no missing APIs, no runtime restrictions.
+- **Rich diagnostics.** Every authorization response tells you which policies matched, which were denied, and the exact evaluation errors. No more guessing why a request was denied.
+- **Synchronous API.** Call `isAuthorized()` and get a decision back. No `await init()`, no deferred WASM instantiation, no lifecycle to manage.
+- **Tree-shakeable ESM.** Import only the parser? You get only the parser. Bundlers eliminate everything you don't use, so you never pay for features you don't need.
 
 ---
 
