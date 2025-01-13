@@ -60,7 +60,7 @@
 ## Quick Start
 
 ```bash
-npm install cedar-ts
+npm install github:elliot736/cedar-ts
 ```
 
 ```typescript
